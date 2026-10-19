@@ -6,8 +6,12 @@ import (
 	"net/http"
 )
 
+var requestCount int
+
 func handler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "Hello!")
+	requestCount++
+
+	fmt.Printf("Request %d", requestCount)
 }
 
 func main() {
