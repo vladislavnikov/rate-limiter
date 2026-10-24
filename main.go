@@ -1,4 +1,4 @@
-package main
+package ratelimiter
 
 import (
 	"log"
@@ -11,6 +11,6 @@ func main() {
 
 	log.Fatal(http.ListenAndServe(
 		":8080",
-		rateLimiter(mux),
+		RateLimiter(mux),
 	))
 }

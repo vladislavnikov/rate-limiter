@@ -1,4 +1,4 @@
-package main
+package ratelimiter
 
 import (
 	"fmt"
@@ -9,7 +9,8 @@ import (
 )
 
 const (
-	requestLimit = 5
+	RequestLimit = 5
+	requestLimit = RequestLimit
 	window       = time.Minute
 )
 
@@ -23,7 +24,17 @@ var (
 	clients = make(map[string]*Client)
 )
 
+func ResetClients() {
+	mu.Lock()
+	defer mu.Unlock()
+	clients = make(map[string]*Client)
+}
+
 func rateLimiter(next http.Handler) http.Handler {
+	return RateLimiter(next)
+}
+
+func RateLimiter(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ip, _, err := net.SplitHostPort(r.RemoteAddr)
 		if err != nil {
@@ -43,11 +54,11 @@ func rateLimiter(next http.Handler) http.Handler {
 			clients[ip] = client
 		}
 
-		if client.requestsCount >= requestLimit {
+		if client.requestsCount >= RequestLimit {
 			retryAfter := time.Until(client.windowEnd)
 			mu.Unlock()
 
-			w.Header().Set("Retry after",
+			w.Header().Set("Retry-After",
 				fmt.Sprintf("%d", int(retryAfter.Seconds())+1))
 			http.Error(w,
 				"Rate limit exceeded.",
@@ -56,12 +67,12 @@ func rateLimiter(next http.Handler) http.Handler {
 		}
 
 		client.requestsCount++
-		remaining := requestLimit - client.requestsCount
+		remaining := RequestLimit - client.requestsCount
 		mu.Unlock()
 
-		w.Header().Set("RateLimit limit",
-			fmt.Sprintf("%d", requestLimit))
-		w.Header().Set("RateLimit remaining",
+		w.Header().Set("X-RateLimit-Limit",
+			fmt.Sprintf("%d", RequestLimit))
+		w.Header().Set("X-RateLimit-Remaining",
 			fmt.Sprintf("%d", remaining))
 
 		next.ServeHTTP(w, r)
